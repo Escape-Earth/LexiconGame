@@ -3,13 +3,13 @@
 > 一个**剧本驱动的对话玩法引擎**：玩家点话题、点 NPC、推进剧情、解锁多结局。
 > 引擎核心约 500 行，剧本写一份 `data.ts` 即可注册新故事——基座代码无需改动。
 
-🎮 **在线试玩**：https://chaosluna.github.io/LexiconGame/
+🎮 **在线试玩**：https://escape-earth.github.io/LexiconGame/
 
 ## 🚀 本地运行
 
 ```bash
 # 1. 克隆
-git clone https://github.com/chaosluna/LexiconGame.git
+git clone https://github.com/Escape-Earth/LexiconGame.git
 cd LexiconGame
 
 # 2. 构建（无依赖、无 install，esbuild 会从 npx 缓存拉一次）
