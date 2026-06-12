@@ -8,10 +8,14 @@
 import { Script } from '../base/script-base';
 import { HelloScript } from './hello';
 import { EldranScript } from './eldran';
+import { SacrificeScript } from './detective-sacrifice';
+import { ConanScript } from './conan-magic';
 
 export type ScriptFactory = () => Script;
 
 export const SCRIPT_FACTORIES: ScriptFactory[] = [
   () => new HelloScript(),
   () => new EldranScript(),
+  () => new SacrificeScript(),
+  () => new ConanScript(),
 ];
