@@ -7,14 +7,15 @@
 
 export const THEME_CSS = `
 /* —— 暗色控制台风：覆盖默认 CSS 变量 —— */
-.lex-stage {
+.lex-layout {
   --lex-bg: #0c0d10;
   --lex-bg-2: #14161b;
+  --lex-bg-3: #1c1f27;
   --lex-line: #2a2f3a;
   --lex-fg: #d8d4c4;
   --lex-fg-dim: #6e7180;
   --lex-accent: #f0b860;
-  --lex-accent-bg: rgba(240,184,96,0.12);
+  --lex-accent-bg: rgba(240,184,96,0.08);
   --lex-good: #fcbf49;
   --lex-warn: #e63946;
   --lex-warn-bg: rgba(230,57,70,0.1);

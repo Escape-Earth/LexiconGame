@@ -6,12 +6,10 @@
 //   - 实现视图钩子（让默认 UI 知道怎么渲染本剧本特色）
 //   - 提供剧本特有的"非对话型动作"：accuse(npcId)
 //   - 自定义关键词高亮
-//
-// 不再有 mount/unmount/UI 类！默认 UI 接管渲染。
 // ==========================================================================
 
 import { Script } from '../../base/script-base';
-import { WorldState, NPCBase, TopicBase, EndingBase } from '../../base/types';
+import { WorldState, NPCBase, EndingBase } from '../../base/types';
 import { Presenter } from '../../base/presenter';
 import { NPCS, TOPICS, DIALOGUES, ENDINGS, INITIAL_TOPICS, TEXTS, EldranNPC } from './data';
 import { THEME_CSS } from './theme';
@@ -36,7 +34,7 @@ export class EldranScript extends Script {
   }
 
   // ─────────────────────────────
-  // 视图钩子（让默认 UI 知道怎么渲染本剧本特色）
+  // 视图钩子
   // ─────────────────────────────
 
   getNpcAccent(npc: NPCBase): string | undefined {
@@ -91,7 +89,6 @@ export class EldranScript extends Script {
   // 剧本特有的"非对话型动作"
   // ─────────────────────────────
 
-  /** 指控某 NPC：触发对应 ending */
   accuse(presenter: Presenter, npcId: string): void {
     presenter.setCustom('accused', npcId);
   }

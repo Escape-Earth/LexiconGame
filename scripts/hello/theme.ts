@@ -7,9 +7,10 @@
 
 export const THEME_CSS = `
 /* —— 暖色调：覆盖默认 CSS 变量 —— */
-.lex-stage {
+.lex-layout {
   --lex-bg: #f7efe2;
   --lex-bg-2: #fff7e8;
+  --lex-bg-3: #ffe9c4;
   --lex-line: #d4b48a;
   --lex-fg: #5a4a36;
   --lex-fg-dim: #a08770;
@@ -23,9 +24,9 @@ export const THEME_CSS = `
 }
 
 /* 略微加大字号让咖啡店感更亲切 */
-.lex-stage .lex-msg-body { font-size: 15px; }
-.lex-stage .lex-ending-title { font-size: 20px; }
+.lex-layout .lex-msg-body { font-size: 15px; }
+.lex-layout .lex-ending-title { font-size: 20px; }
 
-/* 把 NPC 头像改大一点，强调 emoji */
-.lex-stage .lex-npc-avatar { font-size: 28px; }
+/* NPC 头像加大，强调 emoji */
+.lex-layout .lex-npc-avatar { font-size: 26px; }
 `;

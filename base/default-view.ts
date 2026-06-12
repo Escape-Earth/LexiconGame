@@ -4,14 +4,22 @@
 // 这是一个 vanilla DOM 渲染层，订阅 Presenter 的 onChange / onMessage。
 // 它不知道 Engine。只跟 Presenter + Script.viewHooks 对话。
 //
-// 剧本通过 useDefaultView=true（默认）使用本视图。
-// 剧本可通过实现 ScriptViewHooks 中的钩子定制渲染（颜色、头像、文本高亮）。
-// 剧本可通过 themeCss 注入额外样式做主题覆盖。
+// 布局（v3 风格 · 二栏）：
+//   ┌────────────────────────────┬──────────────────┐
+//   │ DIALOGUE (mode-hint + log) │ NPC              │
+//   │                            │                  │
+//   │ TOPIC BOOK                 │ ─────────────    │
+//   │                            │ LOG · 探索记录    │
+//   │ CUSTOM SLOT                │                  │
+//   └────────────────────────────┴──────────────────┘
+//
+// 探索记录由 DefaultView 自动派生自 onMessage 流，所有剧本免费获得。
+// 剧本无需做任何额外工作。
 // ==========================================================================
 
 import { Script } from './script-base';
 import { Presenter, ViewSnapshot, ViewMessage } from './presenter';
-import { NPCBase, TopicBase, EndingBase } from './types';
+import { NPCBase, EndingBase } from './types';
 
 const BASE_STYLE_ID = 'lex-base-style';
 const THEME_STYLE_ID = 'lex-theme-style';
@@ -20,12 +28,12 @@ export class DefaultView {
   private root: HTMLElement;
 
   // —— DOM 节点 —— //
-  private $stage!: HTMLElement;
   private $hint!: HTMLElement;
   private $log!: HTMLElement;
   private $topics!: HTMLElement;
   private $npcs!: HTMLElement;
   private $custom!: HTMLElement;
+  private $record!: HTMLElement;
 
   // —— 注入的样式节点 —— //
   private themeStyleEl?: HTMLStyleElement;
@@ -65,7 +73,10 @@ export class DefaultView {
 
   private subscribe(): void {
     this.offChange  = this.presenter.onChange(snap => this.applySnapshot(snap));
-    this.offMessage = this.presenter.onMessage(msg => this.appendMessage(msg));
+    this.offMessage = this.presenter.onMessage(msg => {
+      this.appendMessage(msg);
+      this.appendRecord(msg);
+    });
   }
 
   // ───────────────────────────────────────
@@ -93,11 +104,13 @@ export class DefaultView {
     this.$hint.className = klass;
     if (snap.hint.kind === 'selected') {
       const t = this.script.texts.cancelLabel ?? '取消';
-      this.$hint.innerHTML = `${this.escapeHtml(snap.hint.text)} <button class="lex-cancel" data-act="cancel">${t}</button>`;
+      this.$hint.innerHTML = `<span class="lex-hint-tag">质问模式</span> ${this.escapeHtml(snap.hint.text)} <button class="lex-cancel" data-act="cancel">${t}</button>`;
       const btn = this.$hint.querySelector('[data-act="cancel"]') as HTMLButtonElement;
       btn.onclick = () => this.presenter.cancelSelection();
+    } else if (snap.hint.kind === 'ended') {
+      this.$hint.innerHTML = `<span class="lex-hint-tag end">已结束</span> ${this.escapeHtml(snap.hint.text)}`;
     } else {
-      this.$hint.textContent = snap.hint.text;
+      this.$hint.innerHTML = `<span class="lex-hint-tag idle">选择模式</span> ${this.escapeHtml(snap.hint.text)}`;
     }
   }
 
@@ -112,7 +125,6 @@ export class DefaultView {
       btn.className = 'lex-topic' + (vt.selected ? ' selected' : '');
       btn.disabled = !vt.enabled;
 
-      // 调用剧本钩子（如果提供）
       if (this.script.renderTopicLabel) {
         this.script.renderTopicLabel(vt.topic, btn);
       } else {
@@ -137,7 +149,6 @@ export class DefaultView {
         btn.style.setProperty('--lex-accent', accent);
       }
 
-      // —— 头像 —— //
       const $avatar = document.createElement('div');
       $avatar.className = 'lex-npc-avatar';
       if (this.script.renderNpcAvatar) {
@@ -146,20 +157,17 @@ export class DefaultView {
         $avatar.textContent = vn.npc.name.slice(0, 1);
       }
 
-      // —— 名字 —— //
       const $name = document.createElement('div');
       $name.className = 'lex-npc-name';
       $name.textContent = vn.npc.name;
       if (accent) $name.style.color = accent;
 
-      // —— 副标题（剧本可选）—— //
       const $sub = document.createElement('div');
       $sub.className = 'lex-npc-sub';
       if (this.script.renderNpcSubtitle) {
         this.script.renderNpcSubtitle(vn.npc, $sub);
       }
 
-      // —— 操作提示 —— //
       const $action = document.createElement('div');
       $action.className = 'lex-npc-action';
       $action.textContent = vn.actionLabel;
@@ -169,6 +177,10 @@ export class DefaultView {
       this.$npcs.appendChild(btn);
     }
   }
+
+  // ───────────────────────────────────────
+  // 主对话区：消息气泡
+  // ───────────────────────────────────────
 
   private appendMessage(msg: ViewMessage): void {
     const wrap = document.createElement('div');
@@ -222,17 +234,42 @@ export class DefaultView {
   }
 
   // ───────────────────────────────────────
+  // 右侧栏：探索记录（从消息流派生，引擎自带能力）
+  // ───────────────────────────────────────
+
+  private appendRecord(msg: ViewMessage): void {
+    let line: string | null = null;
+    if (msg.kind === 'reply') {
+      const t = msg.topic ? `「${msg.topic.label}」` : '（接近）';
+      line = `${msg.npc.name} · ${t}`;
+    } else if (msg.kind === 'flash') {
+      line = msg.text;
+    } else if (msg.kind === 'ending') {
+      line = `🏁 结局：${msg.ending.title ?? msg.ending.id}`;
+    } else if (msg.kind === 'system') {
+      // 系统级开场介绍不进 record，避免噪音；纯系统提示可加（这里跳过）
+      return;
+    }
+    if (!line) return;
+    const li = document.createElement('div');
+    li.className = 'lex-record-line lex-record-' + msg.kind;
+    li.textContent = `> ${line}`;
+    this.$record.appendChild(li);
+    this.$record.scrollTop = this.$record.scrollHeight;
+  }
+
+  // ───────────────────────────────────────
   // DOM
   // ───────────────────────────────────────
 
   private cacheRefs(): void {
     const q = (s: string) => this.root.querySelector(s) as HTMLElement;
-    this.$stage  = q('[data-lex="stage"]');
     this.$hint   = q('[data-lex="hint"]');
     this.$log    = q('[data-lex="log"]');
     this.$topics = q('[data-lex="topics"]');
     this.$npcs   = q('[data-lex="npcs"]');
     this.$custom = q('[data-lex="custom"]');
+    this.$record = q('[data-lex="record"]');
   }
 
   // ───────────────────────────────────────
@@ -267,60 +304,127 @@ export class DefaultView {
 }
 
 // ===== 模板 =====
+// 二栏布局：左主区 = 对话面板 + 话题面板 + 自定义槽；右侧栏 = NPC 面板 + 探索记录面板
 const TEMPLATE = `
-<div class="lex-stage" data-lex="stage">
-  <div class="lex-top">
-    <div class="lex-hint" data-lex="hint"></div>
-  </div>
-  <div class="lex-log" data-lex="log"></div>
-  <div class="lex-bottom">
-    <div class="lex-section">
-      <div class="lex-section-title">📒 话题</div>
+<div class="lex-layout">
+  <main class="lex-main-col">
+    <section class="lex-panel lex-panel-dialogue">
+      <div class="lex-panel-head">
+        <span class="lex-panel-tag">DIALOGUE</span>
+        <span class="lex-panel-hint">高亮关键词会自动入库</span>
+      </div>
+      <div class="lex-hint" data-lex="hint"></div>
+      <div class="lex-log" data-lex="log"></div>
+    </section>
+
+    <section class="lex-panel lex-panel-topics">
+      <div class="lex-panel-head">
+        <span class="lex-panel-tag">TOPIC BOOK · 话题本</span>
+        <span class="lex-panel-hint">点话题进入质问模式</span>
+      </div>
       <div class="lex-topics" data-lex="topics"></div>
-    </div>
-    <div class="lex-section">
-      <div class="lex-section-title">👥 NPC</div>
+    </section>
+
+    <div class="lex-custom" data-lex="custom"></div>
+  </main>
+
+  <aside class="lex-side-col">
+    <section class="lex-panel lex-panel-record">
+      <div class="lex-panel-head">
+        <span class="lex-panel-tag">LOG · 探索记录</span>
+      </div>
+      <div class="lex-record" data-lex="record"></div>
+    </section>
+
+    <section class="lex-panel lex-panel-npcs">
+      <div class="lex-panel-head">
+        <span class="lex-panel-tag">NPC · 在场之人</span>
+      </div>
       <div class="lex-npcs" data-lex="npcs"></div>
-    </div>
-  </div>
-  <div class="lex-custom" data-lex="custom"></div>
+    </section>
+  </aside>
 </div>
 `;
 
-// ===== 默认样式（中性灰，剧本可用 themeCss 覆盖） =====
+// ===== 默认样式（中性灰，剧本可用 themeCss 覆盖 CSS 变量） =====
 const BASE_STYLE = `
-.lex-stage {
-  display: flex; flex-direction: column;
+.lex-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 12px;
   height: 100%;
   font-family: "PingFang SC", "Microsoft YaHei", "Cascadia Code", sans-serif;
   font-size: 14px;
   color: var(--lex-fg, #d8d4c4);
-  background: var(--lex-bg, #14161b);
-  border-radius: 8px;
-  padding: 14px 18px;
+}
+.lex-main-col, .lex-side-col {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  min-height: 0;
 }
-.lex-top {
+
+/* —— 通用面板 —— */
+.lex-panel {
+  background: var(--lex-bg-2, #14161b);
+  border: 1px solid var(--lex-line, #2a2f3a);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.lex-panel-head {
+  background: var(--lex-bg-3, #1c1f27);
   border-bottom: 1px solid var(--lex-line, #2a2f3a);
-  padding-bottom: 10px;
+  padding: 6px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 1px;
 }
+.lex-panel-tag { color: var(--lex-accent, #f0b860); font-weight: bold; }
+.lex-panel-hint { color: var(--lex-fg-dim, #6e7180); }
+
+/* —— 对话面板（左主区上半 · 撑满）—— */
+.lex-panel-dialogue { flex: 1; }
+
+/* —— Hint 模式条 —— */
 .lex-hint {
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: var(--lex-bg-2, #1c1f27);
+  background: var(--lex-bg-3, #1c1f27);
+  border-bottom: 1px solid var(--lex-line, #2a2f3a);
+  padding: 8px 14px;
+  font-size: 12px;
   color: var(--lex-fg-dim, #6e7180);
-  font-size: 13px;
-  display: flex; align-items: center; gap: 8px;
-  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .lex-hint.selected {
-  background: var(--lex-accent-bg, rgba(240,184,96,0.12));
+  background: var(--lex-accent-bg, rgba(240,184,96,0.08));
   color: var(--lex-fg, #d8d4c4);
-  border: 1px solid var(--lex-accent, #f0b860);
+  border-bottom-color: var(--lex-accent, #f0b860);
 }
 .lex-hint.ended {
   background: var(--lex-warn-bg, rgba(230,57,70,0.1));
   color: var(--lex-warn, #e63946);
+  border-bottom-color: var(--lex-warn, #e63946);
+}
+.lex-hint-tag {
+  background: var(--lex-line, #2a2f3a);
+  color: var(--lex-accent, #f0b860);
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.lex-hint.selected .lex-hint-tag {
+  background: var(--lex-accent, #f0b860);
+  color: var(--lex-bg, #0c0d10);
+}
+.lex-hint-tag.end {
+  background: var(--lex-warn, #e63946);
+  color: white;
 }
 .lex-cancel {
   background: transparent;
@@ -333,51 +437,56 @@ const BASE_STYLE = `
   font-size: 11px;
   margin-left: auto;
 }
+.lex-cancel:hover {
+  color: var(--lex-warn, #e63946);
+  border-color: var(--lex-warn, #e63946);
+}
+
+/* —— 对话气泡区 —— */
 .lex-log {
   flex: 1;
   overflow-y: auto;
-  display: flex; flex-direction: column;
-  gap: 10px;
-  padding: 4px 2px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   line-height: 1.7;
 }
 .lex-msg {
-  padding: 10px 14px;
-  border-radius: 6px;
-  background: var(--lex-bg-2, #1c1f27);
   border-left: 3px solid var(--lex-line, #2a2f3a);
+  padding: 10px 14px;
+  background: var(--lex-bg-3, #1c1f27);
+  border-radius: 0 4px 4px 0;
 }
 .lex-msg.system {
-  background: transparent;
-  color: var(--lex-fg-dim, #6e7180);
+  border-left-color: var(--lex-accent, #f0b860);
+  background: var(--lex-accent-bg, rgba(240,184,96,0.05));
+  color: var(--lex-accent, #f0b860);
   font-style: italic;
-  border-left: none;
-  text-align: center;
-  font-size: 13px;
 }
 .lex-msg.flash {
+  border-left-color: var(--lex-accent, #f0b860);
   background: var(--lex-accent-bg, rgba(240,184,96,0.12));
   color: var(--lex-accent, #f0b860);
-  border-left-color: var(--lex-accent, #f0b860);
   font-weight: bold;
-  text-align: center;
   animation: lexFlash 0.4s ease-out;
 }
-@keyframes lexFlash { 0% { transform: scale(1.05); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes lexFlash {
+  0% { transform: scale(1.02); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.lex-msg-head { font-size: 12px; font-weight: bold; margin-bottom: 6px; }
+.lex-msg-body { color: var(--lex-fg, #d8d4c4); }
+
 .lex-msg.ending {
   background: var(--lex-bg, #0c0d10);
-  border: 1px solid var(--lex-good, #fcbf49);
-  border-left-width: 5px;
+  border-left: 5px solid var(--lex-good, #fcbf49);
   padding: 16px 20px;
   margin-top: 16px;
 }
-.lex-msg-head {
-  font-size: 12px;
-  font-weight: bold;
-  margin-bottom: 6px;
-}
 .lex-ending-title {
-  font-size: 18px; font-weight: bold;
+  font-size: 18px;
+  font-weight: bold;
   color: var(--lex-good, #fcbf49);
   margin-bottom: 10px;
 }
@@ -389,26 +498,27 @@ const BASE_STYLE = `
   font-size: 12px;
 }
 
-.lex-bottom {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 14px;
+/* —— 话题面板（左主区中部）—— */
+.lex-panel-topics {
+  flex: 0 0 auto;
+  max-height: 200px;
 }
-.lex-section {
-  background: var(--lex-bg-2, #1c1f27);
-  border: 1px solid var(--lex-line, #2a2f3a);
-  border-radius: 6px;
-  padding: 10px 12px;
+.lex-topics {
+  padding: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow-y: auto;
+  align-content: flex-start;
 }
-.lex-section-title {
-  font-size: 11px;
-  letter-spacing: 1px;
+.lex-empty {
   color: var(--lex-fg-dim, #6e7180);
-  margin-bottom: 8px;
-  font-weight: bold;
+  font-size: 12px;
+  font-style: italic;
+  padding: 12px;
+  width: 100%;
+  text-align: center;
 }
-.lex-topics { display: flex; flex-wrap: wrap; gap: 8px; min-height: 36px; }
-.lex-empty { color: var(--lex-fg-dim, #6e7180); font-size: 12px; font-style: italic; }
 .lex-topic {
   background: var(--lex-bg, #0c0d10);
   border: 1px solid var(--lex-accent, #f0b860);
@@ -428,28 +538,78 @@ const BASE_STYLE = `
 }
 .lex-topic:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.lex-npcs { display: flex; flex-direction: column; gap: 8px; }
+/* —— 自定义槽（如指控面板）—— */
+.lex-custom:empty { display: none; }
+.lex-custom { flex: 0 0 auto; }
+
+/* —— 右侧探索记录面板（在上，可伸缩占据剩余空间）—— */
+.lex-panel-record { flex: 1; min-height: 0; }
+.lex-record {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--lex-fg-dim, #6e7180);
+  line-height: 1.6;
+  font-family: "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
+}
+.lex-record-line { padding: 1px 0; }
+.lex-record-flash { color: var(--lex-accent, #f0b860); }
+.lex-record-ending { color: var(--lex-good, #fcbf49); font-weight: bold; }
+
+/* —— 右侧 NPC 面板（在下，紧邻话题区）—— */
+.lex-panel-npcs { flex: 0 0 auto; }
+.lex-npcs {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .lex-npc {
   background: var(--lex-bg, #0c0d10);
   border: 1px solid var(--lex-line, #2a2f3a);
-  border-radius: 6px;
+  border-radius: 4px;
   padding: 10px 12px;
   cursor: pointer;
   font-family: inherit;
+  font-size: 13px;
   text-align: left;
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 28px 1fr;
   grid-template-rows: auto auto auto;
   gap: 0 10px;
   transition: all 0.15s;
 }
-.lex-npc:hover:not(:disabled) { transform: translateX(2px); background: var(--lex-bg-2, #1c1f27); }
+.lex-npc:hover:not(:disabled) {
+  background: var(--lex-bg-3, #1c1f27);
+  transform: translateX(2px);
+}
 .lex-npc:disabled { opacity: 0.5; cursor: not-allowed; }
-.lex-npc-avatar { grid-row: 1/4; font-size: 22px; align-self: center; text-align: center; }
+.lex-npc-avatar {
+  grid-row: 1/4;
+  font-size: 20px;
+  align-self: center;
+  text-align: center;
+}
 .lex-npc-name { font-weight: bold; font-size: 14px; color: var(--lex-fg, #d8d4c4); }
 .lex-npc-sub { color: var(--lex-fg-dim, #6e7180); font-size: 11px; }
 .lex-npc-sub:empty { display: none; }
 .lex-npc-action { color: var(--lex-accent, #f0b860); font-size: 11px; }
 
-.lex-custom:empty { display: none; }
+/* —— 滚动条 —— */
+.lex-log::-webkit-scrollbar,
+.lex-record::-webkit-scrollbar,
+.lex-topics::-webkit-scrollbar,
+.lex-npcs::-webkit-scrollbar { width: 6px; height: 6px; }
+.lex-log::-webkit-scrollbar-track,
+.lex-record::-webkit-scrollbar-track,
+.lex-topics::-webkit-scrollbar-track,
+.lex-npcs::-webkit-scrollbar-track { background: transparent; }
+.lex-log::-webkit-scrollbar-thumb,
+.lex-record::-webkit-scrollbar-thumb,
+.lex-topics::-webkit-scrollbar-thumb,
+.lex-npcs::-webkit-scrollbar-thumb {
+  background: var(--lex-line, #2a2f3a);
+  border-radius: 3px;
+}
 `;
