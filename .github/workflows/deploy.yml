@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages
+
+# 触发：push 到 main 分支；也允许手动触发
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Pages 部署需要的权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时刻只允许一个部署任务在跑（新的 push 进来时取消正在跑的）
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # esbuild 是 devDependencies 里唯一需要的——快速安装
+      - name: Install esbuild
+        run: npm install --no-save esbuild@^0.28.0
+
+      - name: Build bundle
+        run: |
+          npx esbuild main.ts \
+            --bundle \
+            --format=esm \
+            --outfile=dist/bundle.js \
+            --target=es2020 \
+            --minify
+
+      # 准备发布产物（保留全部静态资源 + dist/）
+      - name: Prepare site
+        run: |
+          mkdir -p _site
+          # 顶层静态文件
+          cp index.html style.css _site/
+          # 打包产物
+          mkdir -p _site/dist
+          cp dist/bundle.js _site/dist/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
