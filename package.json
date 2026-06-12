@@ -1,0 +1,24 @@
+{
+  "name": "lexicon-game",
+  "version": "0.4.0",
+  "description": "A topic-driven dialogue engine. Pick a topic, ask an NPC, unlock truths.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "esbuild main.ts --bundle --format=esm --outfile=dist/bundle.js --target=es2020 --sourcemap",
+    "watch": "esbuild main.ts --bundle --format=esm --outfile=dist/bundle.js --target=es2020 --sourcemap --watch",
+    "typecheck": "tsc --noEmit",
+    "serve": "serve . -l 8765",
+    "dev": "npm run build && npm run serve"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "serve": "^14.2.0",
+    "typescript": "^5.6.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaosluna/LexiconGame.git"
+  },
+  "license": "MIT"
+}

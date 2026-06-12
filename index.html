@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lexicon Engine</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">▌</span>
+      <span class="brand-title">Lexicon Engine</span>
+      <span class="brand-sub">v0.3 · 引擎宿主</span>
+    </div>
+    <div class="status">
+      <button id="back-btn" class="back-btn">← 返回菜单</button>
+      <span id="current-script" class="current-script">尚未加载剧本</span>
+    </div>
+  </header>
+
+  <main class="host">
+    <!-- 剧本选择菜单（引擎自带的少量 UI） -->
+    <div id="script-menu" class="script-menu"></div>
+
+    <!-- 剧本舞台（剧本通过 mount() 接管这里） -->
+    <div id="script-stage" class="script-stage"></div>
+  </main>
+
+  <footer class="bottombar">
+    <span>引擎 ~250 行 · 剧本可独立扩展 · 引擎不知道任何剧本细节</span>
+  </footer>
+
+  <script type="module" src="dist/bundle.js"></script>
+</body>
+</html>

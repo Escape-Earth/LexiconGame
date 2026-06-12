@@ -1,0 +1,137 @@
+/* ==========================================================================
+   Lexicon Engine —— 宿主层样式（仅顶栏、菜单、底栏）
+   剧本自己的样式由剧本注入，不在这个文件里。
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: #0c0d10;
+  color: #d8d4c4;
+  font-family: "Cascadia Code", "JetBrains Mono", "Consolas", "微软雅黑", monospace;
+  font-size: 14px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ───── 顶栏 / 底栏 ───── */
+.topbar, .bottombar {
+  background: #14161b;
+  padding: 8px 16px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.topbar { border-bottom: 1px solid #2a2f3a; }
+.bottombar { border-top: 1px solid #2a2f3a; font-size: 11px; color: #6e7180; }
+
+.brand-mark { color: #f0b860; margin-right: 4px; }
+.brand-title { color: #f0b860; font-weight: bold; letter-spacing: 2px; }
+.brand-sub { color: #6e7180; margin-left: 8px; font-size: 11px; }
+
+.status { display: flex; align-items: center; gap: 12px; }
+.current-script { color: #6e7180; font-size: 12px; letter-spacing: 1px; }
+
+.back-btn {
+  background: transparent;
+  border: 1px solid #6e7180;
+  color: #6e7180;
+  padding: 4px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.back-btn:hover { color: #f0b860; border-color: #f0b860; }
+
+/* ───── 主区域：菜单 / 舞台 ───── */
+.host {
+  height: calc(100vh - 80px);
+  padding: 16px;
+  overflow: auto;
+}
+
+.script-menu {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.script-card {
+  background: #14161b;
+  border: 1px solid #2a2f3a;
+  color: #d8d4c4;
+  padding: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all 0.18s;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.script-card:hover {
+  background: #1c1f27;
+  border-color: #f0b860;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(240,184,96,0.1);
+}
+.script-card .card-id {
+  font-size: 11px;
+  color: #6e7180;
+  letter-spacing: 1px;
+}
+.script-card h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #f0b860;
+  letter-spacing: 1px;
+}
+.script-card p {
+  margin: 0;
+  color: #6e7180;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.script-card .card-cta {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #2a2f3a;
+  color: #f0b860;
+  font-size: 12px;
+}
+
+.empty-menu {
+  color: #6e7180;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.8;
+  padding: 40px;
+}
+.empty-menu code {
+  background: #1c1f27;
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: #f0b860;
+}
+
+.script-stage {
+  height: 100%;
+}
+
+/* ───── 滚动条 ───── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0c0d10; }
+::-webkit-scrollbar-thumb { background: #2a2f3a; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #6e7180; }
